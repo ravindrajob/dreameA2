@@ -1,0 +1,24 @@
+# Environment and secrets
+.env
+.pii_terms.local
+*.token
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+
+# Logs
+*.log
+
+# Real personal lidar dumps (keep only synthetic demo assets)
+web/assets/*_real.pcd
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/

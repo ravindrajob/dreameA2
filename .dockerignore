@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+.pii_terms.local
+*.log
+__pycache__
+*.pyc
+.venv
+tests
+scripts

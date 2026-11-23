@@ -1,0 +1,36 @@
+# ==============================================================================
+# Home Assistant Lovelace Card Configuration
+# Dreame Robotic Mower A2 - 3D LiDAR Cockpit Integration
+# ==============================================================================
+
+# Option 1: Fullscreen Dashboard Panel / Webpage Card (Recommended)
+# Embeds the Three.js 3D WebGL cockpit with live telemetry and controls.
+type: iframe
+title: Dreame A2 LiDAR Cockpit
+url: http://192.0.2.100:8000/ # Replace with your cockpit container IP/host
+aspect_ratio: 16x9
+
+# ------------------------------------------------------------------------------
+# Option 2: Vertical Stack with Native HA Entities & Quick View
+# ------------------------------------------------------------------------------
+# type: vertical-stack
+# cards:
+#   - type: lawn-mower
+#     entity: lawn_mower.a2
+#     name: Dreame A2
+#   - type: entities
+#     title: Mower Telemetry & Environment
+#     entities:
+#       - entity: sensor.a2_current_mowed_area
+#         name: Current Session Mowed Area
+#       - entity: sensor.a2_current_app_map_area
+#         name: Map Cadastral Area
+#       - entity: binary_sensor.dreame_roboticmower_a2_dreame_a2_rain_sensor
+#         name: Physical Rain Sensor
+#       - entity: sensor.a2_battery_level
+#         name: Battery
+#       - entity: sensor.a2_blade_life
+#         name: Cutting Blade Remaining Life
+#   - type: iframe
+#     url: http://192.0.2.100:8000/
+#     aspect_ratio: 100%

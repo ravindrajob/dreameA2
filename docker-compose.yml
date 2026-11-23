@@ -1,0 +1,24 @@
+services:
+  dreame-a2-cockpit:
+    build: .
+    container_name: dreame_a2_cockpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+    environment:
+      - HA_URL=${HA_URL:-http://192.0.2.100:8123}
+      - HA_TOKEN=${HA_TOKEN:-}
+      - MOWER_ENTITY_ID=${MOWER_ENTITY_ID:-lawn_mower.a2}
+      - API_AUTH_TOKEN=${API_AUTH_TOKEN:-}
+      - PORT=8000
+    volumes:
+      - ./web/assets:/app/web/assets

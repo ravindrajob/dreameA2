@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dreame Robotic Mower - 3D LiDAR Cockpit</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%200%20100%20100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+    <!-- Three.js + OrbitControls from public CDN with fallback -->
+    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --bg-dark: #0a0e14;
+            --panel-bg: rgba(16, 23, 34, 0.85);
+            --border-glow: rgba(56, 189, 248, 0.25);
+            --accent-cyan: #38bdf8;
+            --accent-green: #22c55e;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-main);
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Glassmorphism Top Bar */
+        .header-bar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            right: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glow);
+            border-radius: 14px;
+            z-index: 10;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .title-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            font-size: 24px;
+        }
+
+        .title-text h1 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: #fff;
+        }
+
+        .title-text span {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            background: rgba(34, 197, 94, 0.15);
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            color: var(--accent-green);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 10px var(--accent-green);
+        }
+
+        /* Metrics HUD Overlay */
+        .hud-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+            max-width: 320px;
+            width: calc(100% - 32px);
+        }
+
+        .hud-card {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glow);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .metric-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .metric-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .metric-unit {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* Controls Floating Box */
+        .controls-panel {
+            position: absolute;
+            top: 80px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 10;
+        }
+
+        .btn-ctrl {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(8px);
+        }
+
+        .btn-ctrl:hover {
+            background: rgba(56, 189, 248, 0.2);
+            border-color: var(--accent-cyan);
+            transform: scale(1.05);
+        }
+
+        .btn-ctrl:active {
+            transform: scale(0.95);
+        }
+
+        /* Bottom Action Buttons */
+        .action-bar {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-weight: 600;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-action.primary {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.4);
+            color: #4ade80;
+        }
+
+        .btn-action.warning {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: rgba(245, 158, 11, 0.4);
+            color: #fbbf24;
+        }
+
+        .btn-action:hover {
+            filter: brightness(1.2);
+        }
+
+        /* Demo badge */
+        .demo-pill {
+            position: absolute;
+            bottom: 20px;
+            right: 16px;
+            background: rgba(245, 158, 11, 0.15);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: var(--accent-amber);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+
+        /* Legend */
+        .legend-bar {
+            position: absolute;
+            bottom: 60px;
+            right: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            z-index: 10;
+        }
+
+        .gradient-strip {
+            width: 120px;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(to right, #004d40, #00c853, #ffd600, #ff6d00, #d50000);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 120px;
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        /* Loading spinner */
+        #loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            z-index: 20;
+            pointer-events: none;
+            transition: opacity 0.5s ease;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid rgba(56, 189, 248, 0.2);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (min-width: 768px) {
+            .hud-panel {
+                max-width: 380px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <div style="font-size: 13px; color: var(--accent-cyan); font-weight: 600; letter-spacing: 0.5px;">LOADING 3D LIDAR MAP...</div>
+    </div>
+
+    <!-- Header Bar -->
+    <div class="header-bar">
+        <div class="title-group">
+            <div class="logo-icon">🌱</div>
+            <div class="title-text">
+                <h1>DREAME A2 COCKPIT</h1>
+                <span>3D LiDAR OmniSense™ Viewer</span>
+            </div>
+        </div>
+        <div class="status-badge" id="status-badge">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-label">Docked (Idle)</span>
+        </div>
+    </div>
+
+    <!-- Right Controls -->
+    <div class="controls-panel">
+        <button class="btn-ctrl" id="btn-reset-view" title="Reset Camera">🎯</button>
+        <button class="btn-ctrl" id="btn-top-view" title="Top-Down View">📐</button>
+        <button class="btn-ctrl" id="btn-toggle-rotate" title="Auto Rotate">🔄</button>
+        <button class="btn-ctrl" id="btn-size-up" title="Point Size +">➕</button>
+        <button class="btn-ctrl" id="btn-size-down" title="Point Size -">➖</button>
+    </div>
+
+    <!-- Elevation Legend -->
+    <div class="legend-bar">
+        <div class="gradient-strip"></div>
+        <div class="legend-labels">
+            <span>Low (-0.2m)</span>
+            <span>High (+1.5m)</span>
+        </div>
+    </div>
+
+    <!-- Bottom Left HUD Card -->
+    <div class="hud-panel">
+        <div class="hud-card">
+            <div class="metrics-grid">
+                <div class="metric-item">
+                    <span class="metric-label">Battery</span>
+                    <div class="metric-value"><span id="val-battery">100</span><span class="metric-unit">%</span></div>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Session Area</span>
+                    <div class="metric-value"><span id="val-area">—</span><span class="metric-unit">m²</span></div>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Rain Sensor</span>
+                    <div class="metric-value" style="font-size: 14px;" id="val-rain">☀️ Dry</div>
+                </div>
+                <div class="metric-item">
+                    <span class="metric-label">Blade Life</span>
+                    <div class="metric-value"><span id="val-blade">85</span><span class="metric-unit">%</span></div>
+                </div>
+            </div>
+
+            <!-- Action Controls -->
+            <div class="action-bar">
+                <button class="btn-action primary" onclick="sendMowerCommand('start')">▶ Mow</button>
+                <button class="btn-action warning" onclick="sendMowerCommand('pause')">⏸ Pause</button>
+                <button class="btn-action" onclick="sendMowerCommand('dock')">🏠 Dock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Pill -->
+    <div class="demo-pill" id="demo-pill">Mode: Demo Synthetic</div>
+
+    <script>
+        // --- 3D THREE.JS ENGINE SETUP ---
+        const container = document.getElementById('canvas-container');
+        let scene, camera, renderer, controls, pointCloud;
+        let mowerMarker, headingArrow;
+        let isAutoRotating = false;
+        let pointSize = 0.08;
+
+        function initScene() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0e14);
+            scene.fog = new THREE.FogExp2(0x0a0e14, 0.035);
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+            camera.position.set(0, -18, 14);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below ground
+            controls.minDistance = 3;
+            controls.maxDistance = 45;
+            controls.target.set(0, 0, 0);
+
+            // Ambient + Directional Light
+            const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambient);
+            const dirLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+            dirLight.position.set(10, 20, 15);
+            scene.add(dirLight);
+
+            // Ground grid helper
+            const grid = new THREE.GridHelper(30, 30, 0x1e293b, 0x0f172a);
+            grid.rotation.x = Math.PI / 2;
+            scene.add(grid);
+
+            // Add Mower representation in 3D
+            createMowerObject();
+
+            window.addEventListener('resize', onWindowResize);
+            setupUIHandlers();
+            animate();
+        }
+
+        function createMowerObject() {
+            const group = new THREE.Group();
+            
+            // Robot chassis (sleek dark grey disc/box)
+            const bodyGeo = new THREE.CylinderGeometry(0.35, 0.4, 0.18, 32);
+            const bodyMat = new THREE.MeshStandardMaterial({
+                color: 0x22262e,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            const body = new THREE.Mesh(bodyGeo, bodyMat);
+            body.rotation.x = Math.PI / 2;
+            group.add(body);
+
+            // LiDAR Dome on top
+            const domeGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.08, 16);
+            const domeMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7 });
+            const dome = new THREE.Mesh(domeGeo, domeMat);
+            dome.position.z = 0.12;
+            dome.rotation.x = Math.PI / 2;
+            group.add(dome);
+
+            // Direction arrow
+            const arrowDir = new THREE.Vector3(0, 1, 0);
+            headingArrow = new THREE.ArrowHelper(arrowDir, new THREE.Vector3(0, 0, 0.15), 0.7, 0x22c55e, 0.2, 0.15);
+            group.add(headingArrow);
+
+            // Station dock marker
+            const dockGeo = new THREE.BoxGeometry(0.8, 0.8, 0.05);
+            const dockMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+            const dock = new THREE.Mesh(dockGeo, dockMat);
+            dock.position.set(-6, -5, 0.02);
+            scene.add(dock);
+
+            group.position.set(-6, -5, 0.1); // Docked position by default
+            mowerMarker = group;
+            scene.add(mowerMarker);
+        }
+
+        // --- HYPSOMETRIC COLOR PALETTE (TURBO / JET) ---
+        function getHypsometricColor(z, minZ = -0.2, maxZ = 1.8) {
+            let t = (z - minZ) / (maxZ - minZ);
+            t = Math.max(0, Math.min(1, t));
+
+            // 5-step gradient: Teal -> Green -> Yellow -> Orange -> Red
+            let r, g, b;
+            if (t < 0.25) {
+                const f = t / 0.25;
+                r = 0.0; g = 0.3 + 0.5 * f; b = 0.4 + 0.4 * (1 - f);
+            } else if (t < 0.5) {
+                const f = (t - 0.25) / 0.25;
+                r = 0.1 + 0.8 * f; g = 0.8 + 0.2 * f; b = 0.1;
+            } else if (t < 0.75) {
+                const f = (t - 0.5) / 0.25;
+                r = 0.9 + 0.1 * f; g = 1.0 - 0.5 * f; b = 0.0;
+            } else {
+                const f = (t - 0.75) / 0.25;
+                r = 1.0; g = 0.5 * (1 - f); b = 0.0;
+            }
+            return new THREE.Color(r, g, b);
+        }
+
+        // --- PCD PARSER (ASCII) ---
+        async function loadPointcloud(url) {
+            const loaderEl = document.getElementById('loader');
+            loaderEl.style.opacity = '1';
+
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const text = await resp.text();
+                
+                const lines = text.split('\n');
+                let isData = false;
+                const positions = [];
+                const colors = [];
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line || line.startsWith('#')) continue;
+
+                    if (!isData) {
+                        if (line.startsWith('DATA ascii')) isData = true;
+                        continue;
+                    }
+
+                    const parts = line.split(/\s+/);
+                    if (parts.length >= 3) {
+                        const x = parseFloat(parts[0]);
+                        const y = parseFloat(parts[1]);
+                        const z = parseFloat(parts[2]);
+
+                        if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+                            positions.push(x, y, z);
+                            const c = getHypsometricColor(z);
+                            colors.push(c.r, c.g, c.b);
+                        }
+                    }
+                }
+
+                if (pointCloud) scene.remove(pointCloud);
+
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+                const material = new THREE.PointsMaterial({
+                    size: pointSize,
+                    vertexColors: true,
+                    sizeAttenuation: true,
+                    transparent: true,
+                    opacity: 0.95
+                });
+
+                pointCloud = new THREE.Points(geometry, material);
+                scene.add(pointCloud);
+
+                loaderEl.style.opacity = '0';
+            } catch (err) {
+                console.error("Failed to load PCD:", err);
+                loaderEl.textContent = `Error loading PCD map (${err && err.message ? err.message : 'unknown error'})`;
+                loaderEl.style.color = '#ef4444';
+                loaderEl.style.fontSize = '13px';
+            }
+        }
+
+        // --- CAMERA & UI BUTTONS ---
+        function setupUIHandlers() {
+            document.getElementById('btn-reset-view').onclick = () => {
+                controls.reset();
+                camera.position.set(0, -18, 14);
+                controls.target.set(0, 0, 0);
+            };
+
+            document.getElementById('btn-top-view').onclick = () => {
+                camera.position.set(0, 0, 22);
+                camera.lookAt(0, 0, 0);
+                controls.target.set(0, 0, 0);
+            };
+
+            document.getElementById('btn-toggle-rotate').onclick = () => {
+                isAutoRotating = !isAutoRotating;
+                controls.autoRotate = isAutoRotating;
+                controls.autoRotateSpeed = 1.0;
+            };
+
+            document.getElementById('btn-size-up').onclick = () => {
+                if (pointCloud) {
+                    pointSize = Math.min(pointSize + 0.02, 0.3);
+                    pointCloud.material.size = pointSize;
+                }
+            };
+
+            document.getElementById('btn-size-down').onclick = () => {
+                if (pointCloud) {
+                    pointSize = Math.max(pointSize - 0.02, 0.02);
+                    pointCloud.material.size = pointSize;
+                }
+            };
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // --- TELEMETRY & COMMANDS ---
+        async function fetchStatus() {
+            try {
+                const resp = await fetch('/api/status');
+                if (!resp.ok) throw new Error('Not available');
+                const data = await resp.json();
+                updateUIWithTelemetry(data);
+            } catch (e) {
+                // Fallback demo values if running standalone
+                document.getElementById('demo-pill').textContent = "Demo Standalone Mode";
+            }
+        }
+
+        function updateUIWithTelemetry(data) {
+            const robot = data.robot || {};
+            const env = data.environment || {};
+
+            if (robot.battery !== undefined) {
+                document.getElementById('val-battery').textContent = robot.battery;
+            }
+            if (robot.mowing_area_m2 !== undefined && robot.mowing_area_m2 !== null) {
+                document.getElementById('val-area').textContent = robot.mowing_area_m2;
+            } else {
+                document.getElementById('val-area').textContent = '—';
+            }
+            if (robot.blade_life_pct !== undefined) {
+                document.getElementById('val-blade').textContent = Math.round(parseFloat(robot.blade_life_pct));
+            }
+            if (env.rain_status_label) {
+                document.getElementById('val-rain').textContent = env.rain_status_label;
+            }
+
+            const badge = document.getElementById('status-badge');
+            const dot = document.getElementById('status-dot');
+            const lbl = document.getElementById('status-label');
+
+            const state = (robot.state || 'docked').toLowerCase();
+            lbl.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+
+            if (state === 'mowing' || state === 'working') {
+                badge.style.color = '#38bdf8';
+                badge.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                badge.style.background = 'rgba(56, 189, 248, 0.15)';
+                dot.style.background = '#38bdf8';
+                dot.style.boxShadow = '0 0 10px #38bdf8';
+            } else {
+                badge.style.color = '#22c55e';
+                badge.style.borderColor = 'rgba(34, 197, 94, 0.4)';
+                badge.style.background = 'rgba(34, 197, 94, 0.15)';
+                dot.style.background = '#22c55e';
+                dot.style.boxShadow = '0 0 10px #22c55e';
+            }
+        }
+
+        async function sendMowerCommand(action) {
+            const token = sessionStorage.getItem('cockpit_api_token') || '';
+            try {
+                const resp = await fetch('/api/action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': token ? `Bearer ${token}` : ''
+                    },
+                    body: JSON.stringify({ action: action })
+                });
+                if (resp.status === 401) {
+                    const promptToken = prompt("Enter Cockpit API Token (API_AUTH_TOKEN) for Mower Commands:");
+                    if (promptToken) {
+                        sessionStorage.setItem('cockpit_api_token', promptToken.trim());
+                        sendMowerCommand(action);
+                    }
+                    return;
+                }
+                const res = await resp.json();
+                alert(`Command '${action}' sent: ${res.status || 'OK'}`);
+            } catch (e) {
+                alert(`Action simulated in demo mode: ${action}`);
+            }
+        }
+
+        // Initialize scene and load demo point cloud
+        window.addEventListener('DOMContentLoaded', () => {
+            initScene();
+            loadPointcloud('assets/demo_garden.pcd');
+            fetchStatus();
+            setInterval(fetchStatus, 15000);
+        });
+    </script>
+</body>
+</html>
