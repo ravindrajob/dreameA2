@@ -1,5 +1,8 @@
 services:
   dreame-a2-cockpit:
+    # Option 1 (ready-to-run multi-arch): `docker compose up -d` pulls prebuilt GHCR image.
+    # Option 2 (rebuild from scratch):    `docker compose up -d --build` compiles locally from Dockerfile.
+    image: ghcr.io/ravindrajob/dreamea2:latest
     build: .
     container_name: dreame_a2_cockpit
     restart: unless-stopped

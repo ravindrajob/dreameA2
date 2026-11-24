@@ -4,10 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Dreame Robotic Mower - 3D LiDAR Cockpit</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%200%20100%20100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
-    <!-- Three.js + OrbitControls from public CDN with fallback -->
-    <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-    <script src="https://unpkg.com/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌱</text></svg>">
+    <!-- Vendorized offline Three.js r160 ES Modules (zero external CDN dependency) -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "./vendor/three.module.min.js",
+                "three/addons/": "./vendor/"
+            }
+        }
+    </script>
     <style>
         :root {
             --bg-dark: #0a0e14;
@@ -337,10 +343,12 @@
     <!-- Header Bar -->
     <div class="header-bar">
         <div class="title-group">
-            <div class="logo-icon">🌱</div>
+            <div class="logo-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>
+            </div>
             <div class="title-text">
                 <h1>DREAME A2 COCKPIT</h1>
-                <span>3D LiDAR OmniSense™ Viewer</span>
+                <span>3D LiDAR OmniSense Viewer</span>
             </div>
         </div>
         <div class="status-badge" id="status-badge">
@@ -351,11 +359,11 @@
 
     <!-- Right Controls -->
     <div class="controls-panel">
-        <button class="btn-ctrl" id="btn-reset-view" title="Reset Camera">🎯</button>
-        <button class="btn-ctrl" id="btn-top-view" title="Top-Down View">📐</button>
-        <button class="btn-ctrl" id="btn-toggle-rotate" title="Auto Rotate">🔄</button>
-        <button class="btn-ctrl" id="btn-size-up" title="Point Size +">➕</button>
-        <button class="btn-ctrl" id="btn-size-down" title="Point Size -">➖</button>
+        <button class="btn-ctrl" id="btn-reset-view" title="Reset Camera" aria-label="Reset Camera"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+        <button class="btn-ctrl" id="btn-top-view" title="Top-Down View" aria-label="Top-Down View"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16M12 4v16"/></svg></button>
+        <button class="btn-ctrl" id="btn-toggle-rotate" title="Auto Rotate" aria-label="Auto Rotate"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg></button>
+        <button class="btn-ctrl" id="btn-size-up" title="Point Size +" aria-label="Increase point size">+</button>
+        <button class="btn-ctrl" id="btn-size-down" title="Point Size -" aria-label="Decrease point size">-</button>
     </div>
 
     <!-- Elevation Legend -->
@@ -391,9 +399,9 @@
 
             <!-- Action Controls -->
             <div class="action-bar">
-                <button class="btn-action primary" onclick="sendMowerCommand('start')">▶ Mow</button>
-                <button class="btn-action warning" onclick="sendMowerCommand('pause')">⏸ Pause</button>
-                <button class="btn-action" onclick="sendMowerCommand('dock')">🏠 Dock</button>
+                <button class="btn-action primary" data-action="start"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg> Mow</button>
+                <button class="btn-action warning" data-action="pause"><svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause</button>
+                <button class="btn-action" data-action="dock"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg> Dock</button>
             </div>
         </div>
     </div>
@@ -401,28 +409,32 @@
     <!-- Demo Pill -->
     <div class="demo-pill" id="demo-pill">Mode: Demo Synthetic</div>
 
-    <script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/OrbitControls.js';
+
         // --- 3D THREE.JS ENGINE SETUP ---
         const container = document.getElementById('canvas-container');
         let scene, camera, renderer, controls, pointCloud;
         let mowerMarker, headingArrow;
         let isAutoRotating = false;
-        let pointSize = 0.08;
+        let pointSize = 0.14;
 
         function initScene() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x0a0e14);
-            scene.fog = new THREE.FogExp2(0x0a0e14, 0.035);
+            scene.fog = new THREE.FogExp2(0x0a0e14, 0.022);
 
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(0, -18, 14);
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 120);
+            camera.up.set(0, 0, 1);
+            camera.position.set(13, -15, 11);
 
             renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
 
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls = new OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
             controls.maxPolarAngle = Math.PI / 2 - 0.05; // Don't go below ground
@@ -568,6 +580,7 @@
                 scene.add(pointCloud);
 
                 loaderEl.style.opacity = '0';
+                loaderEl.style.display = 'none';
             } catch (err) {
                 console.error("Failed to load PCD:", err);
                 loaderEl.textContent = `Error loading PCD map (${err && err.message ? err.message : 'unknown error'})`;
@@ -580,7 +593,8 @@
         function setupUIHandlers() {
             document.getElementById('btn-reset-view').onclick = () => {
                 controls.reset();
-                camera.position.set(0, -18, 14);
+                camera.up.set(0, 0, 1);
+                camera.position.set(13, -15, 11);
                 controls.target.set(0, 0, 0);
             };
 
@@ -609,6 +623,10 @@
                     pointCloud.material.size = pointSize;
                 }
             };
+
+            document.querySelectorAll('.btn-action[data-action]').forEach((btn) => {
+                btn.addEventListener('click', () => sendMowerCommand(btn.dataset.action));
+            });
         }
 
         function onWindowResize() {
@@ -679,13 +697,12 @@
 
         async function sendMowerCommand(action) {
             const token = sessionStorage.getItem('cockpit_api_token') || '';
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
             try {
                 const resp = await fetch('/api/action', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': token ? `Bearer ${token}` : ''
-                    },
+                    headers,
                     body: JSON.stringify({ action: action })
                 });
                 if (resp.status === 401) {
@@ -697,6 +714,10 @@
                     return;
                 }
                 const res = await resp.json();
+                if (!resp.ok) {
+                    alert(`Command '${action}' rejected (${resp.status}): ${res.detail || 'Error'}`);
+                    return;
+                }
                 alert(`Command '${action}' sent: ${res.status || 'OK'}`);
             } catch (e) {
                 alert(`Action simulated in demo mode: ${action}`);

@@ -19,6 +19,7 @@ RUN chown -R appuser:appuser /app
 USER appuser
 WORKDIR /app/backend
 
+ENV HOST=0.0.0.0
 EXPOSE 8000
 
 CMD ["python", "main.py"]
